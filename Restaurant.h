@@ -1,3 +1,6 @@
+#ifndef RESTAURANT_H
+#define RESTAURANT_H
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -63,42 +66,64 @@ class Restaurant{
          * @param   order: A const reference to a string representing the order to be added
          */
         void addOrder(const std::string &order){
-            std::lock_guard<std::mutex> lock(queueMutex);
-            orderQueue.push(order);             // Add order to the queue
-            orderCondition.notify_one();        // Notifify one waiting chef
+            /*
+             * construct that locks the mutex immediately when the lock_guard is created
+             * and automatically releases it when the lock_guard goes out of scope.
+             */
+            std::lock_guard<std::mutex> lock(queueMutex);   // Lock mutex to safely access the queue
+            orderQueue.push(order);                         // Add order to the queue
+            orderCondition.notify_one();                    // Notifify one waiting chef
         }
 
 
-        /*
-         * getOrder:    Return the first order in the order queue if exist
-                        Else return an empty string
-         */
         std::string getOrder(){
-            /*
-             * Note:    std::unique_lock<std::mutex> lock(queueMutex);
-             *  This will creates a unique_lock object named lock that immediately acquires (lock) the queueMutex
-             *  This ensures that while the lock object is in scope, the mutex is held, preventing other threads from 
-             *  Entering the critical section that accesses the shared resource (order queue)
-             *  When lock goes out of scope, its destructor automatically release the mutex
-             */
-            std::unique_lock<std::mutex> lock(queueMutex);
+            std::unique_lock<std::mutex> lock(queueMutex); // Lock the queue
 
-            // Wait until there is an order in the queue or the restaurant is closed
-            /*
-             * Note: The thread remains blocked until either there is an order to process or
-             * the restaurant has been closed. When either condition is true, the wait is over and the 
-             * thread continues --> Preventing the thread from continuously checking
-             */
-            orderCondition.wait(lock, [this]() {return !orderQueue.empty() || !open;});
+            // Wait until there is an order or the restaurant is close
+            orderCondition.wait(lock,[this]() { return !orderQueue.empty() || !open;});
 
-            // If ther is an order, retrieve it; else, return an empty string
+            // Grab an order if the queue is not empty
             if (!orderQueue.empty()){
                 std::string order = orderQueue.front();
                 orderQueue.pop();
                 return order;
             }
-            else{
+            // Return an empty string if the queue is empty or the restaurant is closed
+            else {
                 return "";
             }
         }
+
+        /*
+         * runWaiter: while the restaurant is open, the waiter need to take order and add to the restaurant order queue
+         * @param: waiterID:    identify which waiter took order
+         */
+        void runWaiter(int waiterID){
+            while(open){
+                std::this_thread::sleep_for(std::chrono::seconds(1+rand()%3));          // Waiter wait for 1-3 sec before taking another order
+                std::string order = "Order from waiter " + std::to_string(waiterID);   // Generate a unique order based on the waiter's ID
+                addOrder(order);                                                        // Add to the restaurant queue
+                std::cout << "Waiter " << waiterID << " took an order " << order << std::endl;
+            }
+        }
+
+        /*
+         * runChef: chef need to grab an order from the queue and cook it while the restaurant is open or there is an order in the queue
+         * @param:  chefID: identify which chef cook which order
+         */
+        void runChef(int chefID){
+            while (open){
+                std::string order = getOrder();
+                // If the order is empty, break since there are no order or the restaurant is closed
+                if(order.empty()){
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::seconds(2+rand()%4));  // it's cooking time (grabbed this from chat)
+                // Printing out status
+                std::cout<< "Chef " << chefID << "is prepping " << order << std::endl;
+                std::cout<< "Chef " << chefID << "cooked  " << order << std::endl;
+            }
+        }
 };
+
+#endif
