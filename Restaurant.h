@@ -16,6 +16,7 @@ class Restaurant{
         std::condition_variable orderCondition;             // Notifies waiting chefs threads when an order is added
         std::vector <std::thread> waiters;                  // Waiters Thread
         std::vector <std::thread> chefs;                    // Chef Thread
+        std::mutex printMutex;
         bool open;
     
     public:
@@ -76,6 +77,9 @@ class Restaurant{
         }
 
 
+        /*
+         * getOrder: Grab an order from the queue
+         */
         std::string getOrder(){
             std::unique_lock<std::mutex> lock(queueMutex); // Lock the queue
 
@@ -99,10 +103,15 @@ class Restaurant{
          * @param: waiterID:    identify which waiter took order
          */
         void runWaiter(int waiterID){
+            std::vector<std::string> menu = {"Burger", "Pizza","Sushi","Caesar Salad","Boiled Egg","Frozen Water"};
             while(open){
                 std::this_thread::sleep_for(std::chrono::seconds(1+rand()%3));          // Waiter wait for 1-3 sec before taking another order
-                std::string order = "Order from waiter " + std::to_string(waiterID);   // Generate a unique order based on the waiter's ID
+                // Generating a random food item
+                std::string foodItem = menu[rand() %menu.size()];
+                std::string order = foodItem + " from waiter " + std::to_string(waiterID);   // Generate a unique order based on the waiter's ID
                 addOrder(order);                                                        // Add to the restaurant queue
+
+                std::lock_guard<std::mutex> lock(printMutex);
                 std::cout << "Waiter " << waiterID << " took an order " << order << std::endl;
             }
         }
@@ -120,8 +129,9 @@ class Restaurant{
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(2+rand()%4));  // it's cooking time (grabbed this from chat)
                 // Printing out status
-                std::cout<< "Chef " << chefID << "is prepping " << order << std::endl;
-                std::cout<< "Chef " << chefID << "cooked  " << order << std::endl;
+                std::lock_guard<std::mutex> lock(printMutex);                
+                std::cout<< "Chef " << chefID << " is prepping " << order << std::endl;
+                std::cout<< "Chef " << chefID << " cooked  " << order << std::endl;
             }
         }
 };
