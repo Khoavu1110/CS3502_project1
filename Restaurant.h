@@ -63,8 +63,42 @@ class Restaurant{
          * @param   order: A const reference to a string representing the order to be added
          */
         void addOrder(const std::string &order){
-            std::lock_guard<std::mitex> lock(queueMutex);
+            std::lock_guard<std::mutex> lock(queueMutex);
             orderQueue.push(order);             // Add order to the queue
             orderCondition.notify_one();        // Notifify one waiting chef
+        }
+
+
+        /*
+         * getOrder:    Return the first order in the order queue if exist
+                        Else return an empty string
+         */
+        std::string getOrder(){
+            /*
+             * Note:    std::unique_lock<std::mutex> lock(queueMutex);
+             *  This will creates a unique_lock object named lock that immediately acquires (lock) the queueMutex
+             *  This ensures that while the lock object is in scope, the mutex is held, preventing other threads from 
+             *  Entering the critical section that accesses the shared resource (order queue)
+             *  When lock goes out of scope, its destructor automatically release the mutex
+             */
+            std::unique_lock<std::mutex> lock(queueMutex);
+
+            // Wait until there is an order in the queue or the restaurant is closed
+            /*
+             * Note: The thread remains blocked until either there is an order to process or
+             * the restaurant has been closed. When either condition is true, the wait is over and the 
+             * thread continues --> Preventing the thread from continuously checking
+             */
+            orderCondition.wait(lock, [this]() {return !orderQueue.empty() || !open;});
+
+            // If ther is an order, retrieve it; else, return an empty string
+            if (!orderQueue.empty()){
+                std::string order = orderQueue.front();
+                orderQueue.pop();
+                return order;
+            }
+            else{
+                return "";
+            }
         }
 };
