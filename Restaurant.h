@@ -13,6 +13,7 @@ class Restaurant{
     private:
         std::queue<std::string> orderQueue;                 // Store pending orders
         std::mutex queueMutex;                              // Protect access to the order queue
+        std::mutex foodTrayMutex;                           // Food tray for the chef to put the food on and waiter to bring it out
         std::condition_variable orderCondition;             // Notifies waiting chefs threads when an order is added
         std::vector <std::thread> waiters;                  // Waiters Thread
         std::vector <std::thread> chefs;                    // Chef Thread
@@ -106,12 +107,21 @@ class Restaurant{
             std::vector<std::string> menu = {"Burger", "Pizza","Sushi","Caesar Salad","Boiled Egg","Frozen Water"};
             while(open){
                 std::this_thread::sleep_for(std::chrono::seconds(1+rand()%3));          // Waiter wait for 1-3 sec before taking another order
+
+                // Lock queueMutex first to simmulate the adding an order
+                std::lock_guard<std::mutex> lock1(queueMutex);
+                std::this_thread::sleep_for(std::chrono::seconds(1));                   // Processing an order
+                
+                // Locking the foodTrayMutex
+                std::lock_guard<std::mutex> lock2(foodTrayMutex);
+
+                
                 // Generating a random food item
                 std::string foodItem = menu[rand() %menu.size()];
                 std::string order = foodItem + " from waiter " + std::to_string(waiterID);   // Generate a unique order based on the waiter's ID
                 addOrder(order);                                                        // Add to the restaurant queue
 
-                std::lock_guard<std::mutex> lock(printMutex);
+                std::lock_guard<std::mutex> printLock(printMutex);
                 std::cout << "Waiter " << waiterID << " took an order " << order << std::endl;
             }
         }
@@ -127,7 +137,15 @@ class Restaurant{
                 if(order.empty()){
                     break;
                 }
-                std::this_thread::sleep_for(std::chrono::seconds(2+rand()%4));  // it's cooking time (grabbed this from chat)
+                std::this_thread::sleep_for(std::chrono::seconds(2+rand()%4));  // it's cooking time (got this from chat)
+
+                // Locking foodTreyMutex first
+                std::lock_guard<std::mutex> lock1(foodTrayMutex);
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+
+                // Then lock the queueMutex
+                std::lock_guard<std::mutex> lock2(queueMutex);
+
                 // Printing out status
                 std::lock_guard<std::mutex> lock(printMutex);                
                 std::cout<< "Chef " << chefID << " is prepping " << order << std::endl;
