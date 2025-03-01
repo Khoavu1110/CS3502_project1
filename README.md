@@ -1,5 +1,5 @@
 # CS3502_project1
----
+
 ## This project consist of two part
 1. **Project A: Multi-threading Implementation**
     - Implements a multi-threaded.
@@ -7,11 +7,15 @@
     - Includes deadlock detection and resolution.
 2. **Project B: Inter-Process Communication (IPC)**
     - Enable communication between two processes.
+
 ---
+
 ## System Requirements:
 1. OS: Linux or Windows or Mac
 2. Compiler: 'g++' with 'pthread' support
+
 ---
+
 ## How to compile and run the code
 ### I. Project A: Multi-threading Implementation
 1. Make sure you are in the main branch:
@@ -31,7 +35,9 @@
 `g++ -std=c++11 main.cpp -o main`
 4. Run the program:
 `./main`
+
 ---
+
 ## Usage Details
 ### Project A: Multi-threading
 - Waiters generate customer orders.
